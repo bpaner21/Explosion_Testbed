@@ -21,6 +21,11 @@ public class Explosion : MonoBehaviour
     [SerializeField]
     private GameObject origin;
 
+    [Tooltip("The list of objects that the explosion will attempt to hit\n" +
+        "All other objects will intercept the explosion")]
+    [SerializeField]
+    private LayerMask targetMask;
+    
     // The position of the origin object in global world space
     private Vector3 originPosition;
 
@@ -30,6 +35,12 @@ public class Explosion : MonoBehaviour
     // The scalar that affects the radius of the explosion
     private float explosionScalar = 0;
 
+    // The list of objects that intercept the explosion
+    private LayerMask obstacleMask;
+
+    // The list of objects that are within range of the explosion
+    private List<Transform> openTargets = new List<Transform>();
+
     // Start is called before the first frame update
     void Start()
     {
@@ -38,6 +49,8 @@ public class Explosion : MonoBehaviour
         currentExplosionRadius = 0.0f;
         explosionScalar = 0.0f;
         maximumExplosionRadius = AbsoluteValue(maximumExplosionRadius);
+        obstacleMask = ~targetMask;
+
         isExploding = true;
     }
 
@@ -67,6 +80,26 @@ public class Explosion : MonoBehaviour
     private void Detonate()
     {
         currentExplosionRadius = maximumExplosionRadius * explosionScalar;
+
+        CheckInRange();
+    }
+
+    private void CheckInRange()
+    {
+        openTargets.Clear();
+        Collider[] targetsInRange = Physics.OverlapSphere(transform.position, currentExplosionRadius, targetMask);
+
+        for (int i = 0; i < targetsInRange.Length; ++i)
+        {
+            Transform target = targetsInRange[i].transform;
+            Vector3 directionToTarget = (target.transform.position - origin.transform.position).normalized;
+            float distanceToTarget = Vector3.Distance(origin.transform.position, target.position);
+
+            if (!Physics.Raycast (origin.transform.position, directionToTarget, distanceToTarget, obstacleMask))
+            {
+                openTargets.Add(target);
+            }
+        }
     }
 
     private float AbsoluteValue(float value)
@@ -98,6 +131,11 @@ public class Explosion : MonoBehaviour
     public Quaternion Roation
     {
         get { return this.transform.rotation; }
+    }
+
+    public List<Transform> OpenTargets
+    {
+        get { return this.openTargets; }
     }
 
     // Gizmos
